@@ -45,13 +45,7 @@ function download_package() {
   curl $package -s -o - | tar xzf - -C $location
 }
 
-function set-env (){
-  echo "export $1=$2" >> $PROFILE_PATH
-}
 
-function set-default-env (){
-  echo "export $1=\${$1:-$2}" >> $PROFILE_PATH
-}
 
 # Retrieve versions
 GEOS_VERSION=$(manifest_version "geos")
@@ -96,22 +90,26 @@ for dir in $VENDORED_GEOS $VENDORED_GDAL $VENDORED_PROJ; do
   cp -r $CACHE_DIR/$dir/* $BUILD_DIR/$TARGET_VENDOR_DIR &> /dev/null || true
 done
 
-# App directories
-APP_VENDOR="/app/$TARGET_VENDOR_DIR"
+# Set up environment variables
 
-# Setup environment variables
-set-env GEOS_LIBRARY_PATH "$APP_VENDOR/lib"
-set-env GDAL_LIBRARY_PATH "$APP_VENDOR/lib"
-set-env PROJ4_LIBRARY_PATH "$APP_VENDOR/lib"
-set-env GDAL_DATA "$APP_VENDOR/share/gdal"
+function set-env (){
+  echo "export $1=$BUILD_DIR/$TARGET_VENDOR_DIR/$2" >> $BP_DIR/export
+  echo "export $1=/app/$TARGET_VENDOR_DIR/$2" >> $PROFILE_PATH
+}
 
+function append-env (){
+  echo "export $1=\$$1:$BUILD_DIR/$TARGET_VENDOR_DIR/$2" >> $BP_DIR/export
+  echo "export $1=\$$1:/app/$TARGET_VENDOR_DIR/$2" >> $PROFILE_PATH
+}
 
-# Export env var for next build
-echo "BUNDLE_BUILD__RGEO=\"--with-opt-dir=$BUILD_DIR/$TARGET_VENDOR_DIR --with-geos-config=$BUILD_DIR/$TARGET_VENDOR_DIR/bin/geos-config\"" >> $BP_DIR/export
-set-default-env BUNDLE_BUILD__RGEO "--with-opt-dir=$TARGET_VENDOR_DIR --with-geos-config=$TARGET_VENDOR_DIR/bin/geos-config"
-set-default-env LIBRARY_PATH "$APP_VENDOR/lib"
-set-default-env LD_LIBRARY_PATH "$APP_VENDOR/lib"
-set-default-env CPATH "$APP_VENDOR/include"
-set-default-env PATH "$APP_VENDOR/bin"
+set-env GEOS_LIBRARY_PATH "lib"
+set-env GDAL_LIBRARY_PATH "lib"
+set-env PROJ4_LIBRARY_PATH "lib"
+set-env GDAL_DATA "share/gdal"
+
+append-env LIBRARY_PATH "lib"
+append-env LD_LIBRARY_PATH "lib"
+append-env CPATH "include"
+append-env PATH "bin"
 
 echo "-----> Vendoring geo libraries done"
